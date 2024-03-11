@@ -3,8 +3,8 @@ package org.example.websocketserver_1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.websocketserver_1.config.CommonService;
 import org.example.websocketserver_1.config.Protocol.UserHeader;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -25,32 +25,28 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class MyWebsocketHandler extends AbstractWebSocketHandler {
     private UserHeader userHeader;
-    @Autowired
-    public MyWebsocketHandler(UserHeader userHeader) {
-        this.userHeader = userHeader;
-    }
+    private final CommonService commonService;
 
     private final List<WebSocketSession> clientSessions = new CopyOnWriteArrayList<>();
 //    private WebSocketSession externalServerSession;
 //    private WebSocketSession kaldi;
     private final HashMap<String, BufferedOutputStream> sendFileMap = new HashMap<>();
 
+
+
     // 연결이 된 후
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         log.info("[WSS][CON] Websocket Connection..");
-        log.info(String.valueOf(session.getHandshakeHeaders()));
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<Object, Object> wsHeader = objectMapper.convertValue(session.getHandshakeHeaders(), Map.class);
+//        log.info(userHeader.toString());
 
-        log.info(wsHeader.toString());
-//        for(String key : wsHeader.keySet()){
-//            if(header.containsKey(key)){
-//                header.put(key, wsHeader.get(key));
-//                log.info(userHeader.toString());
-//            }
-//
-//        }
+//        Map<UserHeader, Object> userHeaders = new HashMap<>();
+        log.info(String.valueOf(session.getHandshakeHeaders()));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        userHeader = commonService.handshakeToUserHeader(session.getHandshakeHeaders(), objectMapper);
+        log.info("Updated UserHeader: " + userHeader);
+
         clientSessions.add(session);
     }
 
@@ -126,7 +122,7 @@ public class MyWebsocketHandler extends AbstractWebSocketHandler {
         byte[] bytes = new byte[byteBuffer.remaining()];
         byteBuffer.get(bytes);
         bos.write(bytes);
-
+        log.info("received payload : " + bytes.length);
         if (message.isLast()) { // 마지막 메시지인지 확인합니다.
             if (bos != null) {
                 bos.close(); // 스트림을 닫고 리소스를 해제합니다.
